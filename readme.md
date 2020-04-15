@@ -3,7 +3,7 @@ Go Obedient Oatmeal
 
 This program generates random band names using nouns and adjectives parsed from text files.
 
-<!-- ![Obedient Oatmeal sample](https://raw.githubusercontent.com/oishiiburger/obedient-oatmeal/master/img/example.gif)
+<!-- ![Obedient Oatmeal sample](https://raw.githubusercontent.com/oishiiburger/obedient-oatmeal/master/img/example.gif) -->
 
 Usage
 -----
@@ -11,7 +11,7 @@ Usage
 ```
 goobedientoatmeal filename_to_parse [number_of_band_names_to_generate]
 ```
--->
+
 Overview
 --------
 

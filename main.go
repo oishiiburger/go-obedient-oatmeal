@@ -11,36 +11,60 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"math/rand"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"gopkg.in/jdkato/prose.v2"
 )
 
+// Constants
+const (
+	USAGE string = "Usage: go-obedient-oatmeal filename.txt [number of band names]"
+)
+
+// Globals
+var lastLen int
+
 func main() {
-	n, a := collectWords("./.data/moby.txt")
-	fmt.Println("\r" + generateBandName(n, a))
+	switch len(os.Args) {
+	case 2:
+		n, a := collectWords(os.Args[1])
+		fmt.Println("\r" + generateBandName(n, a))
+	case 3:
+		v, err := strconv.Atoi(os.Args[2])
+		if err == nil {
+			n, a := collectWords(os.Args[1])
+			for i := 0; i < v; i++ {
+				fmt.Println("\r" + generateBandName(n, a))
+			}
+		} else {
+			errHandler(err)
+		}
+	default:
+		fmt.Println(USAGE)
+	}
 }
 
-// Yields the band name string from slices of nouns and verbs
+// Yields the band name string from slices of nouns and verbs.
 func generateBandName(nouns, adjs []string) (name string) {
-	sd := rand.NewSource(time.Now().UnixNano())
-	rd := rand.New(sd)
-	length := rd.Intn(3) + 2
-	var namebuf bytes.Buffer
+	length := randWithSeed(3) + 2
+	var namebuf = new(bytes.Buffer)
 	for i := 1; i <= length; i++ {
 		if i <= length-1 {
-			choice := rd.Intn(2)
+			choice := randWithSeed(2)
 			if choice == 0 {
-				nidx := rd.Intn(len(nouns))
+				nidx := randWithSeed(len(nouns))
 				namebuf.WriteString(nouns[nidx] + " ")
 			} else {
-				aidx := rd.Intn(len(adjs))
+				aidx := randWithSeed(len(adjs))
 				namebuf.WriteString(adjs[aidx] + " ")
 			}
 		} else {
-			nidx := rd.Intn(len(nouns))
+			nidx := randWithSeed(len(nouns))
 			namebuf.WriteString(nouns[nidx])
 		}
 	}
@@ -48,15 +72,21 @@ func generateBandName(nouns, adjs []string) (name string) {
 	return
 }
 
-// Opens the file and parses, tags to yield noun and adj slices
+// Opens the file and parses, tags to yield noun and adj slices.
 func collectWords(filename string) ([]string, []string) {
-	fmt.Print("Reading file...")
-	f, _ := ioutil.ReadFile(filename)
-	doc, _ := prose.NewDocument(string(f))
+	printWithClear("Reading file " + filename + "...")
+	f, ferr := ioutil.ReadFile(filename)
+	if ferr != nil {
+		errHandler(ferr)
+	}
+	doc, derr := prose.NewDocument(string(f))
+	if derr != nil {
+		errHandler(derr)
+	}
 	tok := doc.Tokens()
 	length := len(tok)
 	var nouns, adjs []string
-	fmt.Print("\r               ")
+	printWithClear("") //fix this
 	for i, word := range tok {
 		updateProgress(i, length)
 		tword := strings.Title(strings.ToLower(word.Text))
@@ -74,7 +104,7 @@ func collectWords(filename string) ([]string, []string) {
 			}
 		}
 	}
-	fmt.Print("\r    ")
+	printWithClear("    ") //fix this
 	return nouns, adjs
 }
 
@@ -87,8 +117,8 @@ func updateProgress(iter, tot int) {
 	fmt.Printf("\r%d%%", int(percent))
 }
 
-// Checks to see if a string element is a member of a slice
-// Returns a bool and the index (or -1)
+// Checks to see if a string element is a member of a slice.
+// Returns a bool and the index (or -1).
 func isMember(val string, slice []string) (bl bool, idx int) {
 	for i, v := range slice {
 		if val == v {
@@ -96,4 +126,29 @@ func isMember(val string, slice []string) (bl bool, idx int) {
 		}
 	}
 	return false, -1
+}
+
+// Returns a random int in range after a fresh seed from time with delay.
+func randWithSeed(max int) (rnd int) {
+	time.Sleep(1)
+	rand.Seed(time.Now().UnixNano())
+	rnd = rand.Intn(max)
+	return
+}
+
+// Prints with a carriage return and rubbing out the previous line.
+func printWithClear(str string) {
+	fmt.Print("\r")
+	for i := 0; i < lastLen; i++ {
+		fmt.Print(" ")
+	}
+	fmt.Print("\r" + str)
+	lastLen = len(str)
+}
+
+// Does some error logging and quits.
+func errHandler(err error) {
+	printWithClear("")
+	log.Fatal(err)
+	os.Exit(1)
 }
