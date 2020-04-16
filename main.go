@@ -14,20 +14,13 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"gopkg.in/jdkato/prose.v2"
 )
-
-// Constants
-const (
-	USAGE string = "Usage: go-obedient-oatmeal filename.txt [number of band names]"
-)
-
-// Globals
-var lastLen int
 
 func main() {
 	switch len(os.Args) {
@@ -39,13 +32,13 @@ func main() {
 		if err == nil {
 			n, a := collectWords(os.Args[1])
 			for i := 0; i < v; i++ {
-				fmt.Println("\r" + generateBandName(n, a))
+				fmt.Println("\r" + strconv.Itoa(i+1) + "\t" + generateBandName(n, a))
 			}
 		} else {
-			errHandler(err)
+			printUsage()
 		}
 	default:
-		fmt.Println(USAGE)
+		printUsage()
 	}
 }
 
@@ -74,22 +67,30 @@ func generateBandName(nouns, adjs []string) (name string) {
 
 // Opens the file and parses, tags to yield noun and adj slices.
 func collectWords(filename string) ([]string, []string) {
-	printWithClear("Reading file " + filename + "...")
-	f, ferr := ioutil.ReadFile(filename)
-	if ferr != nil {
-		errHandler(ferr)
+	f, err := ioutil.ReadFile(filename)
+	if err != nil {
+		fmt.Println("Cannot access file.")
+		printUsage()
 	}
-	doc, derr := prose.NewDocument(string(f))
-	if derr != nil {
-		errHandler(derr)
+	size, err := os.Stat(filename)
+	if err != nil {
+		errHandler(err)
+	}
+	fmt.Println(("Using file " + filename + ", " +
+		strconv.FormatInt(size.Size()/1000, 10) + "kb"))
+	doc, err := prose.NewDocument(string(f))
+	if err != nil {
+		errHandler(err)
 	}
 	tok := doc.Tokens()
-	length := len(tok)
 	var nouns, adjs []string
-	printWithClear("") //fix this
-	for i, word := range tok {
-		updateProgress(i, length)
+	repunc, err := regexp.Compile("[.,;!/\\'\"\\p{Pd}]+")
+	if err != nil {
+		errHandler(err)
+	}
+	for _, word := range tok {
 		tword := strings.Title(strings.ToLower(word.Text))
+		tword = repunc.ReplaceAllString(tword, "")
 		if len(tword) > 1 {
 			if word.Tag == "NN" || word.Tag == "NNS" {
 				member, _ := isMember(tword, nouns)
@@ -104,17 +105,7 @@ func collectWords(filename string) ([]string, []string) {
 			}
 		}
 	}
-	printWithClear("    ") //fix this
 	return nouns, adjs
-}
-
-// Gives user feedback. Used while the parse and slice actions are in process.
-func updateProgress(iter, tot int) {
-	var percent = float32(iter) / float32(tot) * 100
-	if percent > 99 {
-		percent = 100
-	}
-	fmt.Printf("\r%d%%", int(percent))
 }
 
 // Checks to see if a string element is a member of a slice.
@@ -136,19 +127,14 @@ func randWithSeed(max int) (rnd int) {
 	return
 }
 
-// Prints with a carriage return and rubbing out the previous line.
-func printWithClear(str string) {
-	fmt.Print("\r")
-	for i := 0; i < lastLen; i++ {
-		fmt.Print(" ")
-	}
-	fmt.Print("\r" + str)
-	lastLen = len(str)
+// Prints the usage message and exits
+func printUsage() {
+	fmt.Println("Usage: go-obedient-oatmeal filename.txt [number of band names]")
+	os.Exit(1)
 }
 
-// Does some error logging and quits.
+// Does some general error logging and quits.
 func errHandler(err error) {
-	printWithClear("")
 	log.Fatal(err)
 	os.Exit(1)
 }
